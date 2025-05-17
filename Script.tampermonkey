@@ -1,0 +1,291 @@
+// ==UserScript==
+// @name         Blacket Game GUI
+// @namespace    http://tampermonkey.net/
+// @version      2.0
+// @description  Final Blacket trivia game with full features!
+// @match        https://blacket.org/leaderboard/
+// @match        https://blacket.org/stats/
+// @match        https://blacket.org/clans/discover/
+// @match        https://blacket.org/market/
+// @match        https://blacket.org/blooks/
+// @match        https://blacket.org/bazaar/
+// @match        https://blacket.org/inventory/
+// @match        https://blacket.org/settings/
+// @grant        none
+// ==/UserScript==
+
+(function () {
+  'use strict';
+
+  const loadFirebase = () => {
+    const scripts = [
+      "https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js",
+      "https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"
+    ];
+    let loaded = 0;
+    scripts.forEach(src => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = () => {
+        loaded++;
+        if (loaded === scripts.length) initFirebaseGame();
+      };
+      document.head.appendChild(s);
+    });
+  };
+
+  const initFirebaseGame = () => {
+    const firebaseConfig = {
+      apiKey: "AIzaSyCh3yY8p7grlPaIYmLkH-KztMlVd2U0ooo",
+      authDomain: "chatmonkey-2-tp.firebaseapp.com",
+      databaseURL: "https://chatmonkey-2-tp-default-rtdb.firebaseio.com",
+      projectId: "chatmonkey-2-tp",
+      storageBucket: "chatmonkey-2-tp.firebasestorage.app",
+      messagingSenderId: "544692021129",
+      appId: "1:544692021129:web:fb97cc8b881a02ebdf6358"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const style = document.createElement('style');
+    style.textContent = `
+       .blacket-gui {
+        position: fixed;
+        bottom: 20px; /* 👈 previously was top: 60px */
+        right: 20px;
+        width: 320px;
+        background: #2e2f4f;
+        color: white;
+        border: 3px solid #4c5cff;
+        border-radius: 16px;
+        z-index: 9999;
+        padding: 20px;
+        font-family: 'Segoe UI', sans-serif;
+        box-shadow: 0 0 10px #00000066;
+      }
+      .blacket-gui button {
+        width: 100%;
+        padding: 10px;
+        margin: 5px 0;
+        border: none;
+        background: #4c5cff;
+        color: white;
+        border-radius: 10px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+      .blacket-gui button:hover {
+        background: #3a45cc;
+      }
+      .blacket-gui input {
+        width: 100%;
+        padding: 8px;
+        margin: 5px 0 10px 0;
+        border: 2px solid #4c5cff;
+        border-radius: 8px;
+        background: #1f2037;
+        color: white;
+      }
+      .blacket-gui .timer {
+        font-size: 14px;
+        text-align: right;
+        margin-bottom: 10px;
+        font-weight: bold;
+        color: #ffd700;
+      }
+      .feedback {
+        margin-top: 10px;
+        font-weight: bold;
+        text-align: center;
+      }
+    `;
+    document.head.appendChild(style);
+
+    const gui = document.createElement('div');
+    gui.className = 'blacket-gui';
+    gui.innerHTML = `
+      <h2 style="text-align:center;">🎮 Blacket Game</h2>
+      <div id="mainMenu">
+        <button id="playBtn">▶️ Play</button>
+        <button id="hostBtn">📡 Host</button>
+      </div>
+      <div id="playPanel" style="display:none;"></div>
+      <div id="hostPanel" style="display:none;"></div>
+    `;
+    document.body.appendChild(gui);
+
+    const questionSet = [
+  { q: "What is the primary currency in Blacket?", options: ["Tokens", "Coins", "Bucks", "Credits"], a: 0 },
+  { q: "Who is the creator of Blacket?", options: ["Ben", "Tom", "Max", "Alex"], a: 0 },
+  { q: "What is the rarest type of blook?", options: ["Legendary", "Mystical", "Epic", "Uncommon"], a: 1 },
+  { q: "Where can you sell your blooks?", options: ["Market", "Bazaar", "Shop", "Inventory"], a: 1 },
+  { q: "Which section lets you see your blooks?", options: ["Market", "Stats", "Inventory", "Clans"], a: 2 },
+  { q: "Which page shows global rankings?", options: ["Leaderboard", "Blooks", "Stats", "Settings"], a: 0 },
+  { q: "How can you get more blooks?", options: ["Trade", "Buy", "Open boxes", "Sell"], a: 2 },
+  { q: "Which tab lets you join groups?", options: ["Stats", "Clans", "Bazaar", "Market"], a: 1 },
+  { q: "What color is a Mystical border?", options: ["Red", "Rainbow", "Blue", "Black"], a: 1 },
+  { q: "Which tab allows you to customize settings?", options: ["Stats", "Settings", "Blooks", "Clans"], a: 1 },
+  { q: "What happens if you duplicate a blook?", options: ["Sell it", "Ban", "Lose it", "Upgrade it"], a: 0 },
+  { q: "What page shows your trading activity?", options: ["Market", "Inventory", "Bazaar", "Settings"], a: 2 },
+  { q: "What do you use Tokens for?", options: ["Buy blooks", "Join clans", "Change name", "Earn XP"], a: 0 },
+  { q: "What is a 'Blook'?", options: ["Character", "Skin", "Item", "Pet"], a: 0 },
+  { q: "Can you change your Blacket name?", options: ["Yes", "No"], a: 0 },
+  { q: "What page would you visit to see your stats?", options: ["Inventory", "Stats", "Settings", "Clans"], a: 1 },
+  { q: "Which area lets you see blooks available?", options: ["Inventory", "Market", "Leaderboard", "Bazaar"], a: 1 },
+  { q: "Can you see other users’ scores?", options: ["Yes", "No"], a: 0 },
+  { q: "How long does a game last?", options: ["1 min", "3 min", "5 min", "10 min"], a: 1 },
+  { q: "Are Mystical blooks common?", options: ["Yes", "No"], a: 1 },
+  { q: "Which page lists your earned tokens?", options: ["Settings", "Stats", "Bazaar", "Leaderboard"], a: 1 },
+  { q: "Is there a marketplace in Blacket?", options: ["Yes", "No"], a: 0 },
+  { q: "What is the purpose of the 'Bazaar'?", options: ["Sell blooks", "Join games", "Chat", "Settings"], a: 0 },
+  { q: "What’s shown on the leaderboard?", options: ["Top players", "Blooks", "Boxes", "Tokens"], a: 0 },
+  { q: "Which is the rarest blook type?", options: ["Common", "Rare", "Mystical", "Epic"], a: 2 },
+  { q: "What is the home screen color?", options: ["Blue", "Purple", "Dark", "White"], a: 2 },
+  { q: "Where can you host games?", options: ["Leaderboard", "Custom GUI", "Bazaar", "Clans"], a: 1 },
+  { q: "How do you join a game?", options: ["Enter code", "Click Play", "Use nickname", "Ask a friend"], a: 0 },
+  { q: "What’s the first thing you see in Blacket?", options: ["Leaderboard", "Inventory", "Market", "Stats"], a: 0 },
+  { q: "Is Blacket related to Blooket?", options: ["Yes", "No"], a: 0 },
+  { q: "Can you earn tokens daily?", options: ["Yes", "No"], a: 0 },
+  { q: "Are there limited-time blooks?", options: ["Yes", "No"], a: 0 },
+  { q: "Do you need tokens to sell blooks?", options: ["No", "Yes"], a: 0 },
+  { q: "Where do Mysticals usually appear?", options: ["Events", "Bazaar", "Shop", "Stats"], a: 0 },
+  { q: "What’s needed to join clans?", options: ["Tokens", "Level", "Invite", "Name"], a: 2 },
+  { q: "Which button changes your Blacket GUI?", options: ["Settings", "Themes", "Inventory", "Clans"], a: 0 },
+  { q: "Can you open boxes in Blacket?", options: ["Yes", "No"], a: 0 },
+  { q: "Are boxes free in Blacket?", options: ["Yes", "No"], a: 1 },
+  { q: "Do all users start with blooks?", options: ["No", "Yes"], a: 0 },
+  { q: "How do you level up?", options: ["Gain XP", "Buy tokens", "Sell blooks", "Complete quizzes"], a: 0 },
+  { q: "Can you rename your blooks?", options: ["No", "Yes"], a: 0 },
+  { q: "Can you see your token balance?", options: ["Yes", "No"], a: 0 },
+  { q: "Which is NOT a page in Blacket?", options: ["Arcade", "Market", "Clans", "Inventory"], a: 0 },
+  { q: "Is there a chat in Blacket?", options: ["No", "Yes"], a: 0 },
+  { q: "Can you trade blooks in Blacket?", options: ["No", "Yes"], a: 0 },
+  { q: "What’s shown in the Inventory tab?", options: ["Owned blooks", "XP", "Stats", "Themes"], a: 0 },
+  { q: "How do you earn Mysticals?", options: ["Events", "Buying", "Trading", "Duping"], a: 0 },
+  { q: "Which is more rare: Epic or Mystical?", options: ["Mystical", "Epic"], a: 0 },
+  { q: "Where are blook categories shown?", options: ["Inventory", "Market", "Bazaar", "Stats"], a: 0 },
+  { q: "What’s the default background color?", options: ["Black", "Blue", "Dark Gray", "White"], a: 2 },
+  { q: "Do Mysticals have a unique animation?", options: ["Yes", "No"], a: 0 },
+  { q: "Can you preview blooks?", options: ["Yes", "No"], a: 0 },
+  { q: "Where do new players go first?", options: ["Leaderboard", "Stats", "Inventory", "Market"], a: 2 },
+  { q: "How long is a Blacket game?", options: ["3 min", "1 min", "2 min", "5 min"], a: 0 }
+];
+
+
+    const mainMenu = document.getElementById('mainMenu');
+    const playPanel = document.getElementById('playPanel');
+    const hostPanel = document.getElementById('hostPanel');
+
+    document.getElementById('playBtn').onclick = () => {
+      mainMenu.style.display = 'none';
+      playPanel.style.display = 'block';
+      playPanel.innerHTML = `
+        <h3>Join Game</h3>
+        <input id="gameCode" placeholder="Game Code" />
+        <input id="nickname" placeholder="Enter your full blacket name" />
+        <button id="joinGame">Join</button>
+        <button id="backFromPlay">🔙 Back</button>
+      `;
+      document.getElementById('backFromPlay').onclick = () => {
+        playPanel.style.display = 'none';
+        mainMenu.style.display = 'block';
+      };
+      document.getElementById('joinGame').onclick = () => {
+        const code = document.getElementById('gameCode').value.trim();
+        const name = document.getElementById('nickname').value.trim();
+        if (!code || !name) return alert("Enter code and nickname.");
+        startGame(code, name);
+      };
+    };
+
+    document.getElementById('hostBtn').onclick = () => {
+      mainMenu.style.display = 'none';
+      hostPanel.style.display = 'block';
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      const ref = db.ref("games/" + code);
+      ref.set({ created: Date.now(), players: {} });
+      hostPanel.innerHTML = `
+        <h3>Hosting Game: ${code}</h3>
+        <div id="leaderboard"><p>Waiting for players...</p></div>
+        <button id="stopHosting">🛑 Stop Hosting</button>
+        <button id="backFromHost">🔙 Back</button>
+      `;
+      document.getElementById("stopHosting").onclick = () => {
+        ref.remove();
+        location.reload();
+      };
+      document.getElementById("backFromHost").onclick = () => {
+        ref.remove();
+        hostPanel.style.display = 'none';
+        mainMenu.style.display = 'block';
+      };
+      ref.child("players").on("value", snap => {
+        const data = snap.val() || {};
+        const sorted = Object.entries(data).sort((a, b) => b[1].score - a[1].score);
+        document.getElementById("leaderboard").innerHTML =
+          "<h4>Leaderboard</h4>" + sorted.map(([n, s]) => `${n}: ${s.score}`).join("<br>");
+      });
+      setTimeout(() => {
+        ref.remove();
+        hostPanel.innerHTML = `<p>Game ended (3 min timeout).</p>`;
+      }, 180000);
+    };
+
+    function startGame(code, name) {
+      const ref = db.ref("games/" + code + "/players/" + name);
+      ref.set({ score: 0 });
+      let score = 0;
+      let index = 0;
+      const startTime = Date.now();
+
+      function formatTime(ms) {
+        const s = Math.floor(ms / 1000);
+        const min = Math.floor(s / 60);
+        const sec = s % 60;
+        return `${min}:${sec.toString().padStart(2, "0")}`;
+      }
+
+      function updateTimer() {
+        const now = Date.now();
+        const left = 180000 - (now - startTime);
+        if (left <= 0) return end();
+        document.getElementById("timerDisplay").textContent = "⏱ " + formatTime(left);
+        setTimeout(updateTimer, 1000);
+      }
+
+      function showNext() {
+        if (Date.now() - startTime >= 180000) return end();
+        if (index >= questionSet.length) index = 0;
+        const q = questionSet[index++];
+        playPanel.innerHTML = `
+          <div class="timer" id="timerDisplay">⏱ Loading...</div>
+          <h4>${q.q}</h4>
+          <div id="options"></div>
+          <div class="feedback" id="feedbackText"></div>
+        `;
+        q.options.forEach((opt, i) => {
+          const btn = document.createElement("button");
+          btn.textContent = opt;
+          btn.onclick = () => {
+            const correct = i === q.a;
+            document.getElementById("feedbackText").textContent = correct ? "✔️ Correct!" : "❌ Wrong!";
+            if (correct) score++;
+            ref.update({ score });
+            setTimeout(showNext, 1000);
+          };
+          document.getElementById("options").appendChild(btn);
+        });
+      }
+
+      function end() {
+        playPanel.innerHTML = `<h3>Time's up!</h3><p>Score: ${score}</p><button onclick="location.reload()">Restart</button>`;
+      }
+
+      showNext();
+      updateTimer();
+    }
+  };
+
+  loadFirebase();
+})();
