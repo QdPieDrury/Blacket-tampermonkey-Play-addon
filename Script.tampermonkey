@@ -1,21 +1,35 @@
 // ==UserScript==
-// @name         Blacket Game GUI
+// @name         Blacket Game injecter (NON MALICIOUS)
+// @author       QdPieDrury on github, blacket, blooket and most platforms
 // @namespace    http://tampermonkey.net/
-// @version      2.0
-// @description  Final Blacket trivia game with full features!
+// @version      2.4
+// @description  Getting sick of having too manualy host games and competions outside of blacket? well i was too! so i made this script too add a play game feature too blacket i take full responsiblity if this scirpt "hacks" your blacket account but not if you manualy put malicious things into this script
 // @match        https://blacket.org/leaderboard/
 // @match        https://blacket.org/stats/
 // @match        https://blacket.org/clans/discover/
 // @match        https://blacket.org/market/
 // @match        https://blacket.org/blooks/
-// @match        https://blacket.org/bazaar/
 // @match        https://blacket.org/inventory/
 // @match        https://blacket.org/settings/
+// @match        https://blacket.org
 // @grant        none
 // ==/UserScript==
-
+// Not in bazzar because then users can get the stuff they want from the bazzar easier
 (function () {
   'use strict';
+
+  // --- CONFIGURABLE BLOOKS: Add or remove as desired ---
+  const blooks = [
+    { name: "Red", color: "#eb4d4b" },
+    { name: "Blue", color: "#3498db" },
+    { name: "Green", color: "#22a96e" },
+    { name: "Yellow", color: "#f7ca18" },
+    { name: "Purple", color: "#8f44ad" },
+    { name: "Orange", color: "#ff9900" },
+    { name: "Pink", color: "#e056fd" },
+    { name: "Teal", color: "#1abc9c" },
+    { name: "Gray", color: "#7f8fa6" }
+  ];
 
   const loadFirebase = () => {
     const scripts = [
@@ -47,57 +61,111 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
+    // --- SNUG GUI STYLE, with extra for blook boxes ---
     const style = document.createElement('style');
     style.textContent = `
-       .blacket-gui {
+      .blacket-gui {
         position: fixed;
-        bottom: 20px; /* 👈 previously was top: 60px */
-        right: 20px;
-        width: 320px;
+        bottom: 8px !important;
+        right: 8px !important;
+        width: 270px !important;
         background: #2e2f4f;
         color: white;
-        border: 3px solid #4c5cff;
-        border-radius: 16px;
+        border: 2px solid #4c5cff;
+        border-radius: 12px;
         z-index: 9999;
-        padding: 20px;
+        padding: 13px 10px 13px 10px;
         font-family: 'Segoe UI', sans-serif;
-        box-shadow: 0 0 10px #00000066;
+        box-shadow: 0 2px 8px #00000033;
+        min-height: 0;
+        min-width: 0;
       }
       .blacket-gui button {
         width: 100%;
-        padding: 10px;
-        margin: 5px 0;
+        padding: 8px;
+        margin: 4px 0;
         border: none;
         background: #4c5cff;
         color: white;
-        border-radius: 10px;
+        border-radius: 8px;
         font-weight: bold;
         cursor: pointer;
         transition: background 0.3s;
+        font-size: 14px;
       }
-      .blacket-gui button:hover {
+      .blacket-gui button:disabled {
+        background: #222244;
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      .blacket-gui button:hover:not(:disabled) {
         background: #3a45cc;
       }
       .blacket-gui input {
         width: 100%;
-        padding: 8px;
-        margin: 5px 0 10px 0;
+        padding: 7px;
+        margin: 4px 0 8px 0;
         border: 2px solid #4c5cff;
-        border-radius: 8px;
+        border-radius: 6px;
         background: #1f2037;
         color: white;
+        font-size: 14px;
       }
       .blacket-gui .timer {
         font-size: 14px;
         text-align: right;
-        margin-bottom: 10px;
+        margin-bottom: 8px;
         font-weight: bold;
         color: #ffd700;
       }
       .feedback {
-        margin-top: 10px;
+        margin-top: 7px;
         font-weight: bold;
         text-align: center;
+      }
+      .blook-select-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 7px;
+        margin: 10px 0 6px 0;
+      }
+      .blook-box {
+        border-radius: 44% 46% 41% 51%/51% 49% 55% 45%;
+        width: 50px;
+        height: 50px;
+        box-shadow: 0 3px 9px #0002;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 13px;
+        color: #fff;
+        cursor: pointer;
+        border: 2px solid #fff0;
+        transition: border 0.2s, box-shadow 0.2s;
+        user-select: none;
+      }
+      .blook-box.selected {
+        border: 2px solid #ffd700 !important;
+        box-shadow: 0 0 0 3px #ffd70044;
+      }
+      .blook-box.unavailable {
+        opacity: 0.3;
+        pointer-events: none;
+        filter: grayscale(0.7);
+      }
+      .player-blook-list {
+        margin: 8px 0 0 0;
+        font-size: 13px;
+      }
+      .player-blook-indicator {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border-radius: 40%;
+        margin-right: 4px;
+        vertical-align: middle;
+        border: 1px solid #fff3;
       }
     `;
     document.head.appendChild(style);
@@ -115,75 +183,28 @@
     `;
     document.body.appendChild(gui);
 
+    // --- QUESTIONS ---
     const questionSet = [
-  { q: "What is the primary currency in Blacket?", options: ["Tokens", "Coins", "Bucks", "Credits"], a: 0 },
-  { q: "Who is the creator of Blacket?", options: ["Ben", "Tom", "Max", "Alex"], a: 0 },
-  { q: "What is the rarest type of blook?", options: ["Legendary", "Mystical", "Epic", "Uncommon"], a: 1 },
-  { q: "Where can you sell your blooks?", options: ["Market", "Bazaar", "Shop", "Inventory"], a: 1 },
-  { q: "Which section lets you see your blooks?", options: ["Market", "Stats", "Inventory", "Clans"], a: 2 },
-  { q: "Which page shows global rankings?", options: ["Leaderboard", "Blooks", "Stats", "Settings"], a: 0 },
-  { q: "How can you get more blooks?", options: ["Trade", "Buy", "Open boxes", "Sell"], a: 2 },
-  { q: "Which tab lets you join groups?", options: ["Stats", "Clans", "Bazaar", "Market"], a: 1 },
-  { q: "What color is a Mystical border?", options: ["Red", "Rainbow", "Blue", "Black"], a: 1 },
-  { q: "Which tab allows you to customize settings?", options: ["Stats", "Settings", "Blooks", "Clans"], a: 1 },
-  { q: "What happens if you duplicate a blook?", options: ["Sell it", "Ban", "Lose it", "Upgrade it"], a: 0 },
-  { q: "What page shows your trading activity?", options: ["Market", "Inventory", "Bazaar", "Settings"], a: 2 },
-  { q: "What do you use Tokens for?", options: ["Buy blooks", "Join clans", "Change name", "Earn XP"], a: 0 },
-  { q: "What is a 'Blook'?", options: ["Character", "Skin", "Item", "Pet"], a: 0 },
-  { q: "Can you change your Blacket name?", options: ["Yes", "No"], a: 0 },
-  { q: "What page would you visit to see your stats?", options: ["Inventory", "Stats", "Settings", "Clans"], a: 1 },
-  { q: "Which area lets you see blooks available?", options: ["Inventory", "Market", "Leaderboard", "Bazaar"], a: 1 },
-  { q: "Can you see other users’ scores?", options: ["Yes", "No"], a: 0 },
-  { q: "How long does a game last?", options: ["1 min", "3 min", "5 min", "10 min"], a: 1 },
-  { q: "Are Mystical blooks common?", options: ["Yes", "No"], a: 1 },
-  { q: "Which page lists your earned tokens?", options: ["Settings", "Stats", "Bazaar", "Leaderboard"], a: 1 },
-  { q: "Is there a marketplace in Blacket?", options: ["Yes", "No"], a: 0 },
-  { q: "What is the purpose of the 'Bazaar'?", options: ["Sell blooks", "Join games", "Chat", "Settings"], a: 0 },
-  { q: "What’s shown on the leaderboard?", options: ["Top players", "Blooks", "Boxes", "Tokens"], a: 0 },
-  { q: "Which is the rarest blook type?", options: ["Common", "Rare", "Mystical", "Epic"], a: 2 },
-  { q: "What is the home screen color?", options: ["Blue", "Purple", "Dark", "White"], a: 2 },
-  { q: "Where can you host games?", options: ["Leaderboard", "Custom GUI", "Bazaar", "Clans"], a: 1 },
-  { q: "How do you join a game?", options: ["Enter code", "Click Play", "Use nickname", "Ask a friend"], a: 0 },
-  { q: "What’s the first thing you see in Blacket?", options: ["Leaderboard", "Inventory", "Market", "Stats"], a: 0 },
-  { q: "Is Blacket related to Blooket?", options: ["Yes", "No"], a: 0 },
-  { q: "Can you earn tokens daily?", options: ["Yes", "No"], a: 0 },
-  { q: "Are there limited-time blooks?", options: ["Yes", "No"], a: 0 },
-  { q: "Do you need tokens to sell blooks?", options: ["No", "Yes"], a: 0 },
-  { q: "Where do Mysticals usually appear?", options: ["Events", "Bazaar", "Shop", "Stats"], a: 0 },
-  { q: "What’s needed to join clans?", options: ["Tokens", "Level", "Invite", "Name"], a: 2 },
-  { q: "Which button changes your Blacket GUI?", options: ["Settings", "Themes", "Inventory", "Clans"], a: 0 },
-  { q: "Can you open boxes in Blacket?", options: ["Yes", "No"], a: 0 },
-  { q: "Are boxes free in Blacket?", options: ["Yes", "No"], a: 1 },
-  { q: "Do all users start with blooks?", options: ["No", "Yes"], a: 0 },
-  { q: "How do you level up?", options: ["Gain XP", "Buy tokens", "Sell blooks", "Complete quizzes"], a: 0 },
-  { q: "Can you rename your blooks?", options: ["No", "Yes"], a: 0 },
-  { q: "Can you see your token balance?", options: ["Yes", "No"], a: 0 },
-  { q: "Which is NOT a page in Blacket?", options: ["Arcade", "Market", "Clans", "Inventory"], a: 0 },
-  { q: "Is there a chat in Blacket?", options: ["No", "Yes"], a: 0 },
-  { q: "Can you trade blooks in Blacket?", options: ["No", "Yes"], a: 0 },
-  { q: "What’s shown in the Inventory tab?", options: ["Owned blooks", "XP", "Stats", "Themes"], a: 0 },
-  { q: "How do you earn Mysticals?", options: ["Events", "Buying", "Trading", "Duping"], a: 0 },
-  { q: "Which is more rare: Epic or Mystical?", options: ["Mystical", "Epic"], a: 0 },
-  { q: "Where are blook categories shown?", options: ["Inventory", "Market", "Bazaar", "Stats"], a: 0 },
-  { q: "What’s the default background color?", options: ["Black", "Blue", "Dark Gray", "White"], a: 2 },
-  { q: "Do Mysticals have a unique animation?", options: ["Yes", "No"], a: 0 },
-  { q: "Can you preview blooks?", options: ["Yes", "No"], a: 0 },
-  { q: "Where do new players go first?", options: ["Leaderboard", "Stats", "Inventory", "Market"], a: 2 },
-  { q: "How long is a Blacket game?", options: ["3 min", "1 min", "2 min", "5 min"], a: 0 }
-];
+      { q: "What is the primary currency in Blacket?", options: ["Tokens", "Coins", "Bucks", "Credits"], a: 0 },
+      { q: "What is the rarest type of blook?", options: ["Legendary", "Mystical", "Epic", "Uncommon"], a: 1 },
+      { q: "Where can you sell your blooks?", options: ["Market", "Bazaar", "Shop", "Inventory"], a: 1 },
+      { q: "Who is the creater of this script?", options: ["My mum", "nobody", "QdPieDrury", "pig_55"], a: 2 },
+      { q: "who's a famous person on blacket", options: ["pig_55", "QdPieDrury", "josh16", "dogman"], a: 0 }
+    ];
 
-
+    // --- DOM HANDLERS ---
     const mainMenu = document.getElementById('mainMenu');
     const playPanel = document.getElementById('playPanel');
     const hostPanel = document.getElementById('hostPanel');
 
+    // --- PLAY (JOIN GAME) ---
     document.getElementById('playBtn').onclick = () => {
       mainMenu.style.display = 'none';
       playPanel.style.display = 'block';
       playPanel.innerHTML = `
         <h3>Join Game</h3>
         <input id="gameCode" placeholder="Game Code" />
-        <input id="nickname" placeholder="Enter your full blacket name" />
+        <input id="nickname" placeholder="Enter your full Blacket name" />
         <button id="joinGame">Join</button>
         <button id="backFromPlay">🔙 Back</button>
       `;
@@ -195,49 +216,212 @@
         const code = document.getElementById('gameCode').value.trim();
         const name = document.getElementById('nickname').value.trim();
         if (!code || !name) return alert("Enter code and nickname.");
-        startGame(code, name);
+        joinGame(code, name);
       };
     };
 
+    // --- HOST ---
     document.getElementById('hostBtn').onclick = () => {
       mainMenu.style.display = 'none';
       hostPanel.style.display = 'block';
+      // Generate random 6-digit code
       const code = Math.floor(100000 + Math.random() * 900000).toString();
       const ref = db.ref("games/" + code);
-      ref.set({ created: Date.now(), players: {} });
-      hostPanel.innerHTML = `
-        <h3>Hosting Game: ${code}</h3>
-        <div id="leaderboard"><p>Waiting for players...</p></div>
-        <button id="stopHosting">🛑 Stop Hosting</button>
-        <button id="backFromHost">🔙 Back</button>
-      `;
-      document.getElementById("stopHosting").onclick = () => {
+      // Initial game state: phase=intermission, time
+      const gameState = { created: Date.now(), players: {}, phase: "intermission", timer: 180, startedAt: null };
+      ref.set(gameState);
+      let timerInterval;
+      let timerPhase = "intermission";
+      let gameEnded = false;
+
+      // HOST PANEL CONTENT
+      function renderHostPanel(data) {
+        const players = data.players || {};
+        const phase = data.phase || "intermission";
+        const timeLeft = data.timer !== undefined ? data.timer : 180;
+        let timerHtml = `<div class="timer" id="hostTimer">⏱ ${formatTime(timeLeft * 1000)}</div>`;
+        let playerListHtml = "";
+        let startBtnHtml = "";
+
+        if (phase === "intermission") {
+          playerListHtml = `<div><strong>Players in intermission:</strong></div>`;
+          playerListHtml += `<div class="player-blook-list">`;
+          for (const [n, pdata] of Object.entries(players)) {
+            if (pdata.blook) {
+              const blookObj = blooks.find(b=>b.name===pdata.blook);
+              playerListHtml += `
+                <span>
+                  <span class="player-blook-indicator" style="background:${blookObj ? blookObj.color : "#888"}"></span>
+                  ${n} <span style="color:${blookObj ? blookObj.color : "#fff"}">${blookObj ? blookObj.name : "?"}</span>
+                </span><br>
+              `;
+            } else {
+              playerListHtml += `<span>${n} <span style="color:#888">(no blook)</span></span><br>`;
+            }
+          }
+          playerListHtml += `</div>`;
+          if (Object.keys(players || {}).length >= 1) {
+            startBtnHtml = `<button id="startGameBtn">Start Game</button>`;
+          }
+        } else if (phase === "started") {
+          playerListHtml = renderLeaderboard(players);
+        } else {
+          playerListHtml = renderLeaderboard(players);
+        }
+
+        hostPanel.innerHTML = `
+          <h3>Hosting Game: ${code}</h3>
+          ${timerHtml}
+          ${playerListHtml}
+          ${startBtnHtml}
+          <button id="stopHosting">🛑 Stop Hosting</button>
+          <button id="backFromHost">🔙 Back</button>
+        `;
+
+        if (document.getElementById("startGameBtn")) {
+          document.getElementById("startGameBtn").onclick = () => {
+            // Set phase to started, store start time
+            const startedAt = Date.now();
+            ref.update({ phase: "started", startedAt, timer: 180 });
+          };
+        }
+        document.getElementById("stopHosting").onclick = () => {
+          endGame();
+        };
+        document.getElementById("backFromHost").onclick = () => {
+          endGame();
+        };
+      }
+
+      function formatTime(ms) {
+        const s = Math.floor(ms / 1000);
+        const min = Math.floor(s / 60);
+        const sec = s % 60;
+        return `${min}:${sec.toString().padStart(2, "0")}`;
+      }
+
+      function endGame() {
+        if (gameEnded) return;
+        gameEnded = true;
         ref.remove();
+        clearInterval(timerInterval);
         location.reload();
-      };
-      document.getElementById("backFromHost").onclick = () => {
-        ref.remove();
-        hostPanel.style.display = 'none';
-        mainMenu.style.display = 'block';
-      };
-      ref.child("players").on("value", snap => {
+      }
+
+      // Host timer: authoritative, only on host, only for phase "started"
+      function startHostTimer(startedAt) {
+        clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+          const now = Date.now();
+          const elapsed = Math.floor((now - startedAt) / 1000);
+          const timeLeft = Math.max(0, 180 - elapsed);
+          ref.update({ timer: timeLeft });
+          if (timeLeft <= 0) {
+            ref.update({ phase: "ended", timer: 0 });
+            clearInterval(timerInterval);
+          }
+        }, 1000);
+      }
+
+      // Listen for all updates (phase, players, timer)
+      ref.on("value", snap => {
         const data = snap.val() || {};
-        const sorted = Object.entries(data).sort((a, b) => b[1].score - a[1].score);
-        document.getElementById("leaderboard").innerHTML =
-          "<h4>Leaderboard</h4>" + sorted.map(([n, s]) => `${n}: ${s.score}`).join("<br>");
+        const phase = data.phase || "intermission";
+        renderHostPanel(data);
+
+        if (phase !== timerPhase) {
+          timerPhase = phase;
+          if (phase === "started") {
+            // Start host timer using startedAt
+            if (data.startedAt) startHostTimer(data.startedAt);
+          } else {
+            clearInterval(timerInterval);
+          }
+        }
+
+        // Game ended
+        if (phase === "ended") {
+          hostPanel.innerHTML = `<h3>Game ended.</h3>${renderLeaderboard(data.players || {})}<button onclick="location.reload()">Restart</button>`;
+          clearInterval(timerInterval);
+        }
       });
+
+      // Safety: Auto-end after 3 min in any phase if not already ended
       setTimeout(() => {
-        ref.remove();
-        hostPanel.innerHTML = `<p>Game ended (3 min timeout).</p>`;
-      }, 180000);
+        ref.update({ phase: "ended", timer: 0 });
+      }, 182000);
+
+      // Leaderboard rendering
+      function renderLeaderboard(players) {
+        const sorted = Object.entries(players || {}).sort((a, b) => (b[1].score||0) - (a[1].score||0));
+        return "<h4>Leaderboard</h4>" + sorted.map(([n, s]) =>
+          `<span>${n} (${s.blook ? `<span style="color:${(blooks.find(b=>b.name===s.blook)||{}).color||"#fff"}">${s.blook}</span>` : "?"}): <b>${s.score || 0}</b></span><br>`).join("");
+      }
     };
 
-    function startGame(code, name) {
-      const ref = db.ref("games/" + code + "/players/" + name);
-      ref.set({ score: 0 });
+    // --- JOIN GAME / PLAYER FLOW ---
+    function joinGame(code, name) {
+      const ref = db.ref("games/" + code);
+      const playerRef = db.ref("games/" + code + "/players/" + name);
+
+      // Player joins: go to intermission
+      let localBlook = null;
+      let answered = false;
+
+      // Listen for phase:
+      ref.on("value", snap => {
+        const data = snap.val() || {};
+        const phase = data.phase || "intermission";
+        if (phase === "intermission") {
+          renderBlookSelection();
+        } else if (phase === "started") {
+          if (!answered) {
+            answered = true;
+            startGame(ref, playerRef, name, data.timer || 180, data.startedAt || Date.now());
+          }
+        } else if (phase === "ended") {
+          playPanel.innerHTML = `<h3>Game Ended.</h3><button onclick="location.reload()">Restart</button>`;
+        }
+      });
+
+      // Handle Blook Selection UI
+      function renderBlookSelection() {
+        playPanel.innerHTML = `
+          <div style="text-align:center;font-weight:bold">Pick your Blook</div>
+          <div class="blook-select-grid" id="blookGrid"></div>
+          <div style="margin:7px 0 0 0;font-size:13px;color:#ffd700" id="blookStatus"></div>
+        `;
+        const blookGrid = document.getElementById("blookGrid");
+        blooks.forEach(blook => {
+          const div = document.createElement('div');
+          div.className = "blook-box";
+          div.style.background = blook.color;
+          div.textContent = blook.name;
+          if (localBlook === blook.name) div.classList.add("selected");
+          div.onclick = () => {
+            localBlook = blook.name;
+            playerRef.update({ blook: localBlook });
+            document.getElementById("blookStatus").textContent = `Selected: ${blook.name}`;
+            Array.from(blookGrid.children).forEach(child => child.classList.remove("selected"));
+            div.classList.add("selected");
+          };
+          blookGrid.appendChild(div);
+        });
+      }
+
+      // When leaving, remove player
+      window.addEventListener("beforeunload", () => {
+        playerRef.remove();
+      });
+    }
+
+    // --- PLAYER GAME START (after intermission) ---
+    function startGame(gameRef, playerRef, playerName, serverTimeLeft, startedAt) {
       let score = 0;
       let index = 0;
-      const startTime = Date.now();
+      const started = startedAt || Date.now();
+      const totalTime = 180 * 1000;
+      let timerTimeout;
 
       function formatTime(ms) {
         const s = Math.floor(ms / 1000);
@@ -248,14 +432,15 @@
 
       function updateTimer() {
         const now = Date.now();
-        const left = 180000 - (now - startTime);
+        const left = totalTime - (now - started);
         if (left <= 0) return end();
         document.getElementById("timerDisplay").textContent = "⏱ " + formatTime(left);
-        setTimeout(updateTimer, 1000);
+        timerTimeout = setTimeout(updateTimer, 1000);
       }
 
       function showNext() {
-        if (Date.now() - startTime >= 180000) return end();
+        const now = Date.now();
+        if (now - started >= totalTime) return end();
         if (index >= questionSet.length) index = 0;
         const q = questionSet[index++];
         playPanel.innerHTML = `
@@ -268,10 +453,10 @@
           const btn = document.createElement("button");
           btn.textContent = opt;
           btn.onclick = () => {
-            const correct = i === q.a;
+            const correct = Array.isArray(q.a) ? q.a.includes(i) : i === q.a;
             document.getElementById("feedbackText").textContent = correct ? "✔️ Correct!" : "❌ Wrong!";
             if (correct) score++;
-            ref.update({ score });
+            playerRef.update({ score });
             setTimeout(showNext, 1000);
           };
           document.getElementById("options").appendChild(btn);
@@ -279,12 +464,14 @@
       }
 
       function end() {
+        clearTimeout(timerTimeout);
         playPanel.innerHTML = `<h3>Time's up!</h3><p>Score: ${score}</p><button onclick="location.reload()">Restart</button>`;
       }
 
       showNext();
       updateTimer();
     }
+
   };
 
   loadFirebase();
