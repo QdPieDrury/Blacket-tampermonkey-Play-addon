@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         Blacket Game injecter + Dev Panel
+// @name         Blacket Game injecter non malicius
 // @author       QdPieDrury on most platforms, and MrQCat on roblox
 // @namespace    http://tampermonkey.net/
-// @version      3.0
-// @description  Getting sick of having too manualy host games and competions outside of blacket? well i was too! so i made this script too add a play game feature too blacket i take full responsiblity if this scirpt "hacks" your blacket account but not if you manualy put malicious things into this script
+// @version      3.0-nodev
+// @description  Getting sick of having to manually host games and competitions outside of blacket? Now you can—this script adds a play game feature, but **without** the dev panel!
 // @match        https://blacket.org/leaderboard/
 // @match        https://blacket.org/stats/
 // @match        https://blacket.org/clans/discover/
@@ -18,6 +18,7 @@
 (function () {
   'use strict';
 
+  // btw i found this cool text! कंप्यूटर वायरस क्या है
   // --- CONFIGURABLE BLOOKS ---
   const blooks = [
     { name: "Red", color: "#eb4d4b" },
@@ -46,11 +47,6 @@
     };
     document.head.appendChild(s);
   });
-
-  // --- DEV PANEL STATE
-  let isDev = false;
-  let devPassword = null;
-  let devUserSession = false; // true if dev panel is unlocked for this page session
 
   function initFirebaseGame() {
     const firebaseConfig = {
@@ -171,83 +167,6 @@
         vertical-align: middle;
         border: 1px solid #fff3;
       }
-      /* Dev Panel styles (below) */
-      .devpanel-blacket {
-        position: fixed;
-        bottom: 12px;
-        left: 12px;
-        width: 290px;
-        background: #181d2a;
-        color: #fff;
-        border: 2px solid #ff4c82;
-        border-radius: 10px;
-        z-index: 10000;
-        padding: 13px 10px 13px 10px;
-        font-family: 'Segoe UI', sans-serif;
-        box-shadow: 0 2px 8px #00000033;
-        min-height: 0;
-        min-width: 0;
-      }
-      .devpanel-blacket h3 {
-        margin: 0 0 8px 0;
-        text-align: center;
-        color: #ff4c82;
-      }
-      .devpanel-blacket button {
-        width: 100%;
-        padding: 7px;
-        margin: 4px 0;
-        border: none;
-        background: #ff4c82;
-        color: white;
-        border-radius: 8px;
-        font-weight: bold;
-        cursor: pointer;
-        font-size: 14px;
-      }
-      .devpanel-blacket .game-code-list {
-        max-height: 180px;
-        overflow-y: auto;
-        margin-bottom: 7px;
-      }
-      .devpanel-blacket .game-code-item {
-        background: #23243a;
-        border: 1px solid #ff4c8222;
-        border-radius: 7px;
-        padding: 5px 7px;
-        margin: 3px 0;
-        cursor: pointer;
-        transition: background 0.2s;
-      }
-      .devpanel-blacket .game-code-item:hover {
-        background: #ff4c8233;
-      }
-      .devpanel-blacket .selectedGame {
-        background: #ff4c8255 !important;
-      }
-      .devpanel-blacket .player-edit-row {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        margin-bottom: 3px;
-      }
-      .devpanel-blacket input[type='number'] {
-        width: 55px;
-        border-radius: 5px;
-        border: 1px solid #ff4c82;
-        background: #23243a;
-        color: #fff;
-        font-size: 13px;
-        padding: 2px 5px;
-      }
-      .devpanel-blacket select {
-        background: #23243a;
-        color: #fff;
-        border-radius: 5px;
-        border: 1px solid #ff4c82;
-        padding: 2px 5px;
-        font-size: 13px;
-      }
     `;
     document.head.appendChild(style);
 
@@ -259,224 +178,66 @@
       <div id="mainMenu">
         <button id="playBtn">▶️ Play</button>
         <button id="hostBtn">📡 Host</button>
-        <button id="devPanelBtn" style="background:#ff4c82;margin-top:10px;">👑 Dev Panel</button>
       </div>
       <div id="playPanel" style="display:none;"></div>
       <div id="hostPanel" style="display:none;"></div>
     `;
     document.body.appendChild(gui);
 
-    // Dev Panel
-    let devPanelDiv = document.createElement("div");
-    devPanelDiv.className = "devpanel-blacket";
-    devPanelDiv.style.display = "none";
-    document.body.appendChild(devPanelDiv);
-
     const questionSet = [
-  // Blacket Basics
-  { q: "What is the primary currency in Blacket?", options: ["Tokens", "Coins", "Bucks", "Credits"], a: 0 },
-  { q: "Who is the creator of Blacket?", options: ["someone", "QdPieDrury", "pig_55", "josh16"], a: 0 },
-  { q: "Where can you sell your blooks?", options: ["Market", "Bazaar", "Shop", "Inventory"], a: 1 },
-  { q: "Which section lets you see your blooks?", options: ["Market", "Stats", "Inventory", "Clans"], a: 2 },
-  { q: "Which page shows global rankings?", options: ["Leaderboard", "Blooks", "Stats", "Settings"], a: 0 },
-  { q: "Which tab lets you join groups?", options: ["Stats", "Clans", "Bazaar", "Market"], a: 1 },
-  { q: "What color is a Mystical border?", options: ["Red", "Rainbow", "Blue", "Black"], a: 1 },
-  { q: "What happens if you duplicate a blook?", options: ["You get awarded", "You're gonna get banned", "Lose it", "Upgrade it"], a: 1 },
-  { q: "What page shows your trading activity?", options: ["Market", "Inventory", "Bazaar", "Settings"], a: 2 },
-  { q: "What is a 'Blook'?", options: ["Character", "Skin", "Item", "Pet"], a: 0 },
-  { q: "Can you change your Blacket name?", options: ["Yes", "No"], a: 0 },
-  { q: "What page would you visit to see your stats?", options: ["Inventory", "Stats", "Settings", "Clans"], a: 1 },
-  { q: "Which area lets you see blooks available?", options: ["Inventory", "Market", "Leaderboard", "Bazaar"], a: 1 },
-  { q: "Can you see other users’ scores?", options: ["Yes", "No"], a: 0 },
-  { q: "Are Mystical blooks common?", options: ["Yes", "No"], a: 1 },
-  { q: "Is there a marketplace in Blacket?", options: ["Yes", "No"], a: 0 },
-  { q: "What is the purpose of the 'Bazaar'?", options: ["Sell blooks", "Join games", "Chat", "Settings"], a: 0 },
-  { q: "What’s shown on the leaderboard?", options: ["Top players", "Blooks", "Boxes", "Tokens"], a: 0 },
-  { q: "What is the home screen color?", options: ["Blue", "Purple", "Dark", "White"], a: 2 },
-  { q: "Where can you host games?", options: ["Leaderboard", "Custom GUI", "Bazaar", "Clans"], a: 1 },
-  { q: "How do you join a game?", options: ["Enter code", "Click Play", "Use nickname", "Ask a friend"], a: 0 },
-  { q: "Is Blacket related to Blooket?", options: ["Yes", "No"], a: 0 },
-  { q: "Are there limited-time blooks?", options: ["Yes", "No"], a: 0 },
-  { q: "Where do Mysticals usually appear?", options: ["Events", "Bazaar", "Shop", "Stats"], a: 0 },
-  { q: "Which button changes your Blacket GUI?", options: ["Settings", "Themes", "Inventory", "Clans"], a: 0 },
-  { q: "Can you open boxes in Blacket?", options: ["Yes", "No"], a: 0 },
-  { q: "Are boxes free in Blacket?", options: ["Yes", "No"], a: 1 },
-  { q: "How do you level up?", options: ["Gain XP", "Buy tokens", "Sell blooks", "Complete quizzes"], a: 0 },
-  { q: "Which is NOT a page in Blacket?", options: ["Arcade", "Market", "Clans", "Inventory"], a: 0 },
-  { q: "Can you trade blooks in Blacket?", options: ["No", "Yes"], a: 0 },
-  { q: "What’s shown in the Inventory tab?", options: ["Owned blooks", "XP", "Stats", "Themes"], a: 0 },
-  { q: "Which is more rare: Epic or Mystical?", options: ["Mystical", "Epic"], a: 0 },
-  { q: "Where are blook categories shown?", options: ["Inventory", "Market", "Bazaar", "Stats"], a: 0 },
-  { q: "What’s the default background color?", options: ["Black", "Blue", "Dark Gray", "White"], a: 2 },
-  { q: "Can you preview blooks?", options: ["Yes", "No"], a: 0 },
-  { q: "Where do new players go first?", options: ["Leaderboard", "Stats", "Inventory", "Market"], a: 2 },
-  { q: "How long is a Blacket game?", options: ["3 min", "1 min", "2 min", "5 min"], a: 0 },
-  { q: "What do you need to join a clan?", options: ["Invite", "Tokens", "XP", "Nothing"], a: 0 },
-  { q: "Which is the rarest blook type?", options: ["Common", "Rare", "Mystical", "Epic"], a: 2 },
-  { q: "What color are Epic blooks?", options: ["Purple", "Yellow", "Green", "Blue"], a: 0 },
-  { q: "Can you have duplicate blooks?", options: ["No", "Yes"], a: 1 },
-  { q: "What happens if you try to sell a Mystical?", options: ["Allowed", "Not allowed", "Get banned", "Lose it"], a: 1 },
-  { q: "What color border do common blooks have?", options: ["Gray", "Green", "Blue", "White"], a: 0 },
-  { q: "What color is a Legendary blook's border?", options: ["Yellow", "Red", "Gold", "Rainbow"], a: 2 },
-  { q: "Which is a legendary blook?", options: ["Phoenix", "Unicorn", "Dragon", "All"], a: 3 },
-  { q: "How can you get a blook?", options: ["Buy", "Open box", "Trade", "All"], a: 3 },
-  { q: "What is the minimum tokens for a trade?", options: ["0", "1", "10", "100"], a: 1 } ];
-
-
+      { q: "What is the primary currency in Blacket?", options: ["Tokens", "Coins", "Bucks", "Credits"], a: 0 },
+      { q: "Who is the creator of Blacket?", options: ["someone", "QdPieDrury", "pig_55", "josh16"], a: 0 },
+      { q: "Where can you sell your blooks?", options: ["Market", "Bazaar", "Shop", "Inventory"], a: 1 },
+      { q: "Which section lets you see your blooks?", options: ["Market", "Stats", "Inventory", "Clans"], a: 2 },
+      { q: "Which page shows global rankings?", options: ["Leaderboard", "Blooks", "Stats", "Settings"], a: 0 },
+      { q: "Which tab lets you join groups?", options: ["Stats", "Clans", "Bazaar", "Market"], a: 1 },
+      { q: "What color is a Mystical border?", options: ["Red", "Rainbow", "Blue", "Black"], a: 1 },
+      { q: "What happens if you duplicate a blook?", options: ["You get awarded", "You're gonna get banned", "Lose it", "Upgrade it"], a: 1 },
+      { q: "What page shows your trading activity?", options: ["Market", "Inventory", "Bazaar", "Settings"], a: 2 },
+      { q: "What is a 'Blook'?", options: ["Character", "Skin", "Item", "Pet"], a: 0 },
+      { q: "Can you change your Blacket name?", options: ["Yes", "No"], a: 0 },
+      { q: "What page would you visit to see your stats?", options: ["Inventory", "Stats", "Settings", "Clans"], a: 1 },
+      { q: "Which area lets you see blooks available?", options: ["Inventory", "Market", "Leaderboard", "Bazaar"], a: 1 },
+      { q: "Can you see other users’ scores?", options: ["Yes", "No"], a: 0 },
+      { q: "Are Mystical blooks common?", options: ["Yes", "No"], a: 1 },
+      { q: "Is there a marketplace in Blacket?", options: ["Yes", "No"], a: 0 },
+      { q: "What is the purpose of the 'Bazaar'?", options: ["Sell blooks", "Join games", "Chat", "Settings"], a: 0 },
+      { q: "What’s shown on the leaderboard?", options: ["Top players", "Blooks", "Boxes", "Tokens"], a: 0 },
+      { q: "What is the home screen color?", options: ["Blue", "Purple", "Dark", "White"], a: 2 },
+      { q: "Where can you host games?", options: ["Leaderboard", "Custom GUI", "Bazaar", "Clans"], a: 1 },
+      { q: "How do you join a game?", options: ["Enter code", "Click Play", "Use nickname", "Ask a friend"], a: 0 },
+      { q: "Is Blacket related to Blooket?", options: ["Yes", "No"], a: 0 },
+      { q: "Are there limited-time blooks?", options: ["Yes", "No"], a: 0 },
+      { q: "Where do Mysticals usually appear?", options: ["Events", "Bazaar", "Shop", "Stats"], a: 0 },
+      { q: "Which button changes your Blacket GUI?", options: ["Settings", "Themes", "Inventory", "Clans"], a: 0 },
+      { q: "Can you open boxes in Blacket?", options: ["Yes", "No"], a: 0 },
+      { q: "Are boxes free in Blacket?", options: ["Yes", "No"], a: 1 },
+      { q: "How do you level up?", options: ["Gain XP", "Buy tokens", "Sell blooks", "Complete quizzes"], a: 0 },
+      { q: "Which is NOT a page in Blacket?", options: ["Arcade", "Market", "Clans", "Inventory"], a: 0 },
+      { q: "Can you trade blooks in Blacket?", options: ["No", "Yes"], a: 0 },
+      { q: "What’s shown in the Inventory tab?", options: ["Owned blooks", "XP", "Stats", "Themes"], a: 0 },
+      { q: "Which is more rare: Epic or Mystical?", options: ["Mystical", "Epic"], a: 0 },
+      { q: "Where are blook categories shown?", options: ["Inventory", "Market", "Bazaar", "Stats"], a: 0 },
+      { q: "What’s the default background color?", options: ["Black", "Blue", "Dark Gray", "White"], a: 2 },
+      { q: "Can you preview blooks?", options: ["Yes", "No"], a: 0 },
+      { q: "Where do new players go first?", options: ["Leaderboard", "Stats", "Inventory", "Market"], a: 2 },
+      { q: "How long is a Blacket game?", options: ["3 min", "1 min", "2 min", "5 min"], a: 0 },
+      { q: "What do you need to join a clan?", options: ["Invite", "Tokens", "XP", "Nothing"], a: 0 },
+      { q: "Which is the rarest blook type?", options: ["Common", "Rare", "Mystical", "Epic"], a: 2 },
+      { q: "What color are Epic blooks?", options: ["Purple", "Yellow", "Green", "Blue"], a: 0 },
+      { q: "Can you have duplicate blooks?", options: ["No", "Yes"], a: 1 },
+      { q: "What happens if you try to sell a Mystical?", options: ["Allowed", "Not allowed", "Get banned", "Lose it"], a: 1 },
+      { q: "What color border do common blooks have?", options: ["Gray", "Green", "Blue", "White"], a: 0 },
+      { q: "What color is a Legendary blook's border?", options: ["Yellow", "Red", "Gold", "Rainbow"], a: 2 },
+      { q: "Which is a legendary blook?", options: ["Phoenix", "Unicorn", "Dragon", "All"], a: 3 },
+      { q: "How can you get a blook?", options: ["Buy", "Open box", "Trade", "All"], a: 3 },
+      { q: "What is the minimum tokens for a trade?", options: ["0", "1", "10", "100"], a: 1 }
+    ];
 
     // --- DOM HANDLERS ---
     const mainMenu = document.getElementById('mainMenu');
     const playPanel = document.getElementById('playPanel');
     const hostPanel = document.getElementById('hostPanel');
-    const devPanelBtn = document.getElementById('devPanelBtn');
-
-    // --- DEV PANEL BUTTON ---
-    devPanelBtn.onclick = async function() {
-      // If already unlocked this session, just show
-      if (devUserSession) {
-        showDevPanel();
-        return;
-      }
-      // Get current password from Firebase
-      const pwdSnap = await db.ref("devPanelPwd").once("value");
-      devPassword = pwdSnap.val() || "";
-      let tryPwd = prompt("Enter Dev Panel password:");
-      if (tryPwd === null) return; // Cancel
-      if (tryPwd === devPassword) {
-        devUserSession = true;
-        showDevPanel();
-      } else {
-        alert("Incorrect password!");
-      }
-    };
-
-    // --- DEV PANEL LOGIC ---
-    let devPanelSelectedCode = null, devPanelGameRef = null;
-    function showDevPanel() {
-      devPanelDiv.style.display = "";
-      mainMenu.style.display = "none";
-      playPanel.style.display = "none";
-      hostPanel.style.display = "none";
-      renderDevPanelGameList();
-    }
-    function hideDevPanel() {
-      devPanelDiv.style.display = "none";
-      mainMenu.style.display = "block";
-    }
-
-    function renderDevPanelGameList() {
-      devPanelDiv.innerHTML = `<h3>Dev Panel</h3>
-        <button id="closeDevPanel" style="background:#333;margin-bottom:7px;">Close Panel</button>
-        <div id="devCodeList"><div style="color:#aaa">Loading...</div></div>
-        <div id="devGamePanel"></div>`;
-      document.getElementById("closeDevPanel").onclick = hideDevPanel;
-      // List all games
-      db.ref("games").once("value").then(snap => {
-        const games = snap.val() || {};
-        let html = `<div class="game-code-list">`;
-        Object.entries(games).forEach(([code, data]) => {
-          html += `<div class="game-code-item" data-code="${code}">
-                     <b>${code}</b> <span style="color:#ffd700">[${data.phase||'unknown'}]</span>
-                   </div>`;
-        });
-        if (!Object.keys(games).length) html += "<div style='color:#aaa'>No games found</div>";
-        html += "</div>";
-        devPanelDiv.querySelector("#devCodeList").innerHTML = html;
-        Array.from(devPanelDiv.querySelectorAll(".game-code-item")).forEach(item => {
-          item.onclick = () => devPanelSelectGame(item.dataset.code);
-        });
-      });
-    }
-
-    function devPanelSelectGame(code) {
-      devPanelSelectedCode = code;
-      devPanelGameRef = db.ref("games/" + code);
-      // Set devControl for this game (for 15 minutes or as long as panel open)
-      devPanelGameRef.update({ devControl: { user: "devpanel", since: Date.now() } });
-      // Renew dev control every 6 seconds as long as open
-      if (window.devPanelLockIntv) clearInterval(window.devPanelLockIntv);
-      window.devPanelLockIntv = setInterval(() => {
-        devPanelGameRef.update({ devControl: { user: "devpanel", since: Date.now() } });
-      }, 6000);
-      // Listen for game data
-      devPanelGameRef.on("value", snap => {
-        renderDevPanelGamePanel(snap.val() || {});
-      });
-    }
-    function renderDevPanelGamePanel(data) {
-      const players = data.players || {};
-      const phase = data.phase || "intermission";
-      const timer = data.timer !== undefined ? data.timer : 180;
-      let html = `<div style="margin-bottom:7px"><b>Game Code:</b> ${devPanelSelectedCode}</div>
-        <div><b>Phase:</b> <span style="color:#ffd700">${phase}</span></div>
-        <div><b>Timer:</b> <span id="devTimer">${timer}s</span></div>
-        <div style="margin:7px 0 3px 0"><b>Set Phase:</b>
-          <select id="phaseSelect">
-            <option value="intermission" ${phase==="intermission"?"selected":""}>intermission</option>
-            <option value="started" ${phase==="started"?"selected":""}>started</option>
-            <option value="ended" ${phase==="ended"?"selected":""}>ended</option>
-          </select>
-          <button id="setPhaseBtn">Set</button>
-        </div>
-        <div>
-          <input id="devTimerInput" type="number" min="0" max="600" value="${timer}" />
-          <button id="setTimerBtn">Set Timer</button>
-        </div>
-        <div style="margin-top:8px"><b>Players:</b></div>
-        <div style="padding-left:5px;">${
-          Object.entries(players).map(([n, p]) => `
-            <div class="player-edit-row">
-              <span style="flex:1">${n} <span style="color:${p.blook ? "#ffd700" : "#aaa"}">${p.blook||""}</span></span>
-              <input type="number" min="0" value="${p.score||0}" id="scoreinp_${n}">
-              <button data-player="${n}" class="setScoreBtn" style="width:38px">Set</button>
-            </div>
-          `).join('') || "<span style='color:#aaa'>No players yet</span>"
-        }</div>
-        <div style="margin-top:8px">
-          <button id="endGameBtn" style="background:#ff2222">End Game</button>
-          <button id="refreshBtn" style="background:#666">Refresh</button>
-        </div>
-        <div style="margin-top:7px;color:#aaa;font-size:12px">Dev panel overrides host. Closing panel releases control after 10s.</div>
-      `;
-      devPanelDiv.querySelector("#devGamePanel").innerHTML = html;
-      devPanelDiv.querySelector("#setPhaseBtn").onclick = () => {
-        const newPhase = devPanelDiv.querySelector("#phaseSelect").value;
-        devPanelGameRef.update({ phase: newPhase });
-        if (newPhase === "started") devPanelGameRef.update({ startedAt: Date.now() });
-      };
-      devPanelDiv.querySelector("#setTimerBtn").onclick = () => {
-        const t = parseInt(devPanelDiv.querySelector("#devTimerInput").value);
-        if (!isNaN(t)) devPanelGameRef.update({ timer: t });
-      };
-      Array.from(devPanelDiv.querySelectorAll(".setScoreBtn")).forEach(btn => {
-        btn.onclick = () => {
-          const pn = btn.dataset.player;
-          const val = parseInt(devPanelDiv.querySelector(`#scoreinp_${pn}`).value);
-          if (!isNaN(val)) devPanelGameRef.child("players").child(pn).update({ score: val });
-        };
-      });
-      devPanelDiv.querySelector("#endGameBtn").onclick = () => {
-        devPanelGameRef.update({ phase: "ended", timer: 0 });
-      };
-      devPanelDiv.querySelector("#refreshBtn").onclick = () => {
-        devPanelGameRef.once("value", snap => renderDevPanelGamePanel(snap.val()||{}));
-      };
-    }
-    // Release devControl when closing dev panel or navigating away
-    window.addEventListener("beforeunload", ()=>{
-      if (devPanelSelectedCode && devPanelGameRef) {
-        setTimeout(()=>devPanelGameRef.child("devControl").remove(),10000); // release after 10s
-      }
-    });
-
-    // --- REST OF YOUR ORIGINAL SCRIPT GOES HERE ---
-    // 1. Play/host/game logic
-    // 2. All host/phase/timer/score logic must RESPECT devControl
-
-    // Helper: Check if devControl is active
-    function isDevControlActive(gameState) {
-      return !!(gameState && gameState.devControl);
-    }
 
     // --- PLAY (JOIN GAME) ---
     document.getElementById('playBtn').onclick = () => {
@@ -512,12 +273,9 @@
       const gameState = { created: Date.now(), players: {}, phase: "intermission", timer: 180, startedAt: null };
       ref.set(gameState);
       let timerInterval;
-      let timerPhase = "intermission";
       let gameEnded = false;
 
       function renderHostPanel(data) {
-        // RESPECT devControl: if active, show disabled controls!
-        const devActive = isDevControlActive(data);
         const players = data.players || {};
         const phase = data.phase || "intermission";
         const timeLeft = data.timer !== undefined ? data.timer : 180;
@@ -542,11 +300,9 @@
             }
           }
           playerListHtml += `</div>`;
-          if (Object.keys(players || {}).length >= 1 && !devActive) {
+          if (Object.keys(players || {}).length >= 1) {
             startBtnHtml = `<button id="startGameBtn">Start Game</button>`;
           }
-        } else if (phase === "started") {
-          playerListHtml = renderLeaderboard(players);
         } else {
           playerListHtml = renderLeaderboard(players);
         }
@@ -558,10 +314,9 @@
           ${startBtnHtml}
           <button id="stopHosting">🛑 Stop Hosting</button>
           <button id="backFromHost">🔙 Back</button>
-          ${devActive ? `<div style="color:#ff4c82;margin:8px 0">Dev panel is controlling this game. Host controls are disabled.</div>` : ""}
         `;
 
-        if (!devActive && document.getElementById("startGameBtn")) {
+        if (document.getElementById("startGameBtn")) {
           document.getElementById("startGameBtn").onclick = () => {
             const startedAt = Date.now();
             ref.update({ phase: "started", startedAt, timer: 180 });
@@ -608,10 +363,7 @@
         const data = snap.val() || {};
         renderHostPanel(data);
 
-        // RESPECT devControl: host cannot change phase/timer/score if devControl
-        const devActive = isDevControlActive(data);
-
-        if (!devActive && data.phase === "started") {
+        if (data.phase === "started") {
           if (data.startedAt) startHostTimer(data.startedAt);
         } else {
           clearInterval(timerInterval);
@@ -642,12 +394,18 @@
       let answered = false;
 
       ref.on("value", snap => {
-        const data = snap.val() || {};
-        // (OPTIONAL) If you want to block play if dev panel is controlling, uncomment:
-        // if (isDevControlActive(data)) {
-        //   playPanel.innerHTML = `<h3>Dev panel is controlling this game. Please wait or contact a host.</h3><button onclick="location.reload()">Reload</button>`;
-        //   return;
-        // }
+        const data = snap.val();
+        // --- New check: Does the game exist & is not ended? ---
+        if (!data) {
+          playPanel.innerHTML = `<h3 style="color:red;">Game code not found.</h3><button onclick="location.reload()">Back</button>`;
+          return;
+        }
+        if (data.phase === "ended") {
+          playPanel.innerHTML = `<h3 style="color:red;">Game has ended.</h3><button onclick="location.reload()">Back</button>`;
+          return;
+        }
+        // --- End new check ---
+
         const phase = data.phase || "intermission";
         if (phase === "intermission") {
           renderBlookSelection();
@@ -656,8 +414,6 @@
             answered = true;
             startGame(ref, playerRef, name, data.timer || 180, data.startedAt || Date.now());
           }
-        } else if (phase === "ended") {
-          playPanel.innerHTML = `<h3>Game Ended.</h3><button onclick="location.reload()">Restart</button>`;
         }
       });
 
@@ -740,8 +496,5 @@
       showNext();
       updateTimer();
     }
-
-  };
-
-  loadFirebase();
+  }
 })();
